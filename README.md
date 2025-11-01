@@ -1,12 +1,12 @@
 # Copyparty grid video player
 
-Play any video in the copyparty grid view using just a single JavaScript and a video.
+Play any video in the copyparty grid view using just a single JavaScript file and a video.
 
 ## How to use
 
 1. Copy `badapple.js` and the video (as "badapple.mp4") into a folder on your copyparty server
 2. Click the π-symbol below the file view.
-3. Type `import("[path to where you are]/badapple.js")` and click OK
+3. Type `import("[path to where you are]/badapple.js")` and press enter.
 4. Switch to grid view by pressing `g`.
 5. Click the π again and type `badapple()`.
 6. Zoom out by pressing `CTRL` and scrolling down.
