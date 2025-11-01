@@ -2,7 +2,9 @@
 
 const pixel_size = "5rem"
 
-window.badapple = ({video_path = "./badapple.mp4", grid_text = "BAD APPLE!!"}) => {
+window.badapple = (options = {}) => {
+	options = Object.assign({video_path: "./badapple.mp4", grid_text: "BAD APPLE!!"}, options)
+
 	let qs = (q, o=document) => o.querySelector(q)
 	let qsa = (q, o=document) => o.querySelectorAll(q)
 
@@ -16,11 +18,11 @@ window.badapple = ({video_path = "./badapple.mp4", grid_text = "BAD APPLE!!"}) =
 
 	// Create a copy of the first grid item
 	let first_file = qs("a", the_grid)
-	first_file.href = video_path
+	first_file.href = options.video_path
 	first_file.firstChild.style.width = first_file.firstChild.style.height = pixel_size
 	first_file.firstChild.style.border = "1px solid transparent" // Disable empty image border
 	first_file.firstChild.src = ""
-	first_file.lastChild.innerHTML = grid_text
+	first_file.lastChild.innerHTML = options.grid_text
 	
 	// Determine grid size (cursed)
 	let grid_style = getComputedStyle(the_grid)
@@ -42,7 +44,7 @@ window.badapple = ({video_path = "./badapple.mp4", grid_text = "BAD APPLE!!"}) =
 	
 	let video = document.createElement("video")
 	video.onerror = () => {
-		throw Error("Video not found")
+		modal.alert("<h6>Error</h6><br>Video not found!")
 	}
 	
 	// Updating the grid
@@ -58,14 +60,12 @@ window.badapple = ({video_path = "./badapple.mp4", grid_text = "BAD APPLE!!"}) =
 	}, 16)
 	
 	video.onended = () => clearInterval(id)
-	video.src = video_path
+	video.src = options.video_path
 	
-	setTimeout(() => qs("#modal-ok").onclick = () => {
-		// From util.js
+	setTimeout(() => {
 		modal.hide()
 		video.play()
-	}, 5)
+	}, 50)
 
-	// You propably can't even read this
-	return `Copyparty grid video player\n\nVideo path "${video_path}"\nGrid Size: ${canvas.width}x${canvas.height}\n\nPress OK to start.`
+	window.vid = video
 }
