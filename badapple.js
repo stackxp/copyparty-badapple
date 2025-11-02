@@ -1,71 +1,94 @@
-"use strict"
+"use strict";
 
-const pixel_size = "5rem"
+// Written by stackxp
+// GitHub: https://github.com/stackxp/copyparty-badapple/
 
-window.badapple = (options = {}) => {
-	options = Object.assign({video_path: "./badapple.mp4", grid_text: "BAD APPLE!!"}, options)
-
+(async () => {
 	let qs = (q, o=document) => o.querySelector(q)
 	let qsa = (q, o=document) => o.querySelectorAll(q)
+	let rempx = (s) => parseInt(s.replace(/px$/, ""))
 
-	let base = null
-	let canvas = new OffscreenCanvas(1, 1)
-	let ctx = canvas.getContext("2d")
-
-	let the_grid = qs("#ggrid")
-	if (qs("#gfiles").style.display == "none")
-		throw Error("Please make sure you have the grid view enabled!")
-
-	// Create a copy of the first grid item
-	let first_file = qs("a", the_grid)
-	first_file.href = options.video_path
-	first_file.firstChild.style.width = first_file.firstChild.style.height = pixel_size
-	first_file.firstChild.style.border = "1px solid transparent" // Disable empty image border
-	first_file.firstChild.src = ""
-	first_file.lastChild.innerHTML = options.grid_text
+	const pixelWidth = "300px",
+		pixelHeight = "240px",
+		modal_title = "<h2>Copyparty Grid Video Player</h2>"
 	
-	// Determine grid size (cursed)
-	let grid_style = getComputedStyle(the_grid)
-	let item_rect = first_file.getBoundingClientRect()
-	canvas.width = (grid_style.gridTemplateColumns.match(/ /g) || []).length + 1
-	canvas.height = Math.round((window.innerHeight - item_rect.top) / item_rect.height)
-	let num_pixels = canvas.width * canvas.height
-	
-	base = first_file.cloneNode(true)
-	qsa("a", the_grid).forEach((e) => e.remove())
-
-	// Fill dat grid
-	let grid = []
-	for (let i = 0; i < num_pixels; i++) {
-		let n = base.cloneNode(true)
-		the_grid.appendChild(n)
-		grid.push(n.firstChild)
-	}
-	
-	let video = document.createElement("video")
-	video.onerror = () => {
-		modal.alert("<h6>Error</h6><br>Video not found!")
-	}
-	
-	// Updating the grid
-	let id = setInterval(() => {
-		ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-		let data = ctx.getImageData(0, 0, canvas.width, canvas.height).data
-		
-		for (let i = 0; i < num_pixels; i++) {
-			let values = data.slice(i * 4, (i + 1) * 4)
-			let string = new Array(...values).map((v) => v.toString(16).padStart(2, "0")).join("")
-			grid[i].style.background = "#" + string
+	async function run(video_path, zoom, filename) {
+		const video = document.createElement("video")
+		try {
+			await new Promise((res, rej) => {
+				video.onloadedmetadata = (v) => res(v)
+				video.onerror = () => rej()	
+				video.src = video_path
+				video.load()
+			})
+		} catch {
+			modal.alert("<h2>Copyparty grid video player</h2>The video file couldn't be found!")
+			return
 		}
-	}, 16)
-	
-	video.onended = () => clearInterval(id)
-	video.src = options.video_path
-	
-	setTimeout(() => {
-		modal.hide()
-		video.play()
-	}, 50)
 
-	window.vid = video
-}
+		// Preparing
+		let canvas = new OffscreenCanvas(1, 1)
+		let ctx = canvas.getContext("2d")
+
+		let grid = qs("#ggrid")
+		grid.innerHTML = ""
+		grid.style.zoom = zoom
+
+		// Calculate grid size
+		let grid_style = getComputedStyle(grid)
+		let grid_file_height = rempx(grid_style.fontSize) * thegrid.sz + rempx(grid_style.rowGap)
+		let grid_head_height = rempx(getComputedStyle(qs("#ghead")).height)
+
+		canvas.width = (grid_style.gridTemplateColumns.match(/ /g) || []).length + 1
+		canvas.height = Math.floor((window.innerHeight - grid_head_height) / grid_file_height / zoom) - 1
+		let num_pixels = canvas.width * canvas.height
+		
+		// Populate grid (that giant data uri is an empty 1x1 image)
+		for (let i = 0; i < num_pixels; i++)
+			grid.innerHTML += `<a href="${video_path}"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" style="width: ${pixelWidth}; height: ${pixelHeight};"><span>${filename}</span></a>`
+
+		let intIdx = setInterval(() => {
+			// Very efficient
+			ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+			let data = ctx.getImageData(0, 0, canvas.width, canvas.height).data
+
+			for (let i = 0; i < num_pixels; i++) {
+				let color = Array.from(data.slice(i * 4, i * 4 + 3))
+				let hex = "#" + color.map((x) => x.toString(16).padStart(2, "0")).join("")
+
+				grid.childNodes[i].firstChild.style.background = hex
+			}
+		}, 16)
+		
+		video.onended = () => {
+			clearInterval(intIdx)
+			location.reload()
+		}
+
+		video.volume = 0.8
+		video.play()
+	}
+
+	const waitModalPrompt = (html, def) => new Promise((res, rej) => {
+		modal.prompt(html, def, res, rej)
+	})
+
+	// Enable the grid, if not already
+	if (!thegrid.en)
+		qs("#griden").click()
+
+	try {
+		modal.hide()
+
+		// Configuration
+		let video_path = await waitModalPrompt(modal_title + "Select the video file to be played:", "./badapple.mp4")
+		let rawzoom = await waitModalPrompt(modal_title + "Select a grid zoom:", "50%")
+		let zoom = parseFloat(rawzoom.replace(/%$/, "")) / 100
+		if (isNaN(zoom) || zoom <= 0)
+			return modal.alert(modal_title + "Please enter a valid zoom value (float, greater than 0%)")
+		let filename = await waitModalPrompt(modal_title + "Enter a file name for the grid items (purely visual):", "BADAPPLE!!")
+
+		run(video_path, zoom, filename)
+	} catch {}
+
+})()
